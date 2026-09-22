@@ -44,17 +44,17 @@ CANDIDATE_SHORTLIST = [
 CANDLE_INTERVAL_EXEC = "1m"
 CANDLE_INTERVAL_CONFIRM_1 = "5m"     # not a native CoinDCX interval -> built by resampling 1m
 CANDLE_INTERVAL_CONFIRM_2 = "15m"    # built by resampling 1m
-CANDLES_FETCH_LIMIT = 150            # 1m candles fetched per poll (2.5 hours of history)
+CANDLES_FETCH_LIMIT = 340            # 1m candles fetched per poll (~5.5 hours of history)
+# Must stay comfortably above 300 (20 bars x 15 minutes): the engine needs
+# at least 20 resampled 15m candles to run its confirmation timeframe, and
+# resampling can drop a partial bucket at each edge, so this has margin.
 
-POLL_INTERVAL_SECONDS = 20           # how often we re-poll candles for monitored pairs
-# Kept well above the bare minimum needed to catch 1m candle closes: on
-# Render's free tier the engine runs as a background thread INSIDE the same
-# process that serves the dashboard, sharing a small, throttled CPU slice.
-# A 5s interval across 5 pairs (each needing a candle fetch + an orderbook
-# fetch) kept that process near-permanently busy and starved incoming HTTP
-# requests, which is why the dashboard could go unresponsive even though the
-# engine's own logs looked healthy. 20s is still frequent enough for 1m/5m/
-# 15m scalping signals.
+POLL_INTERVAL_SECONDS = 5            # how often we tick -- but each tick now
+# analyzes only ONE pair, round-robin (see engine.run_forever), so with 5
+# monitored pairs each individual coin still gets refreshed roughly every
+# ~25s. This keeps each burst of CPU/network work small enough that it
+# doesn't starve the dashboard's own HTTP handling or trip gunicorn's
+# worker-hang watchdog on Render's free tier's small, throttled CPU slice.
 # CoinDCX's documented public sockets are Socket.IO based; the exact futures
 # candlestick channel/event names are not published in a stable enough form
 # to hardcode safely here, so this engine polls the REST candles endpoint
