@@ -194,13 +194,17 @@ class Engine:
         # one pair per tick keeps every burst small so the process stays
         # responsive to HTTP requests in between.
         rr_index = 0
+        tick_num = 0
         while True:
             loop_start = time.time()
+            tick_num += 1
+            symbol_this_tick = None
             try:
                 self.refresh_universe_if_needed()
                 if self.monitored:
                     cand = self.monitored[rr_index % len(self.monitored)]
                     rr_index += 1
+                    symbol_this_tick = cand.symbol
                     card = self.analyze_pair(cand)
                     self.card_state[cand.symbol] = card
 
@@ -213,6 +217,22 @@ class Engine:
                 self.connection_ok = False
 
             elapsed = time.time() - loop_start
+            # Diagnostic instrumentation: log memory usage (RSS, in MB) and
+            # tick timing every tick. If the process is ever silently killed
+            # (e.g. by an out-of-memory kill), the LAST line of this before
+            # the gap will show whether RSS was climbing toward Render's
+            # plan limit -- proof of a real leak -- versus staying flat,
+            # which would point elsewhere (e.g. Render infra, not our code).
+            try:
+                import resource
+                rss_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+                log.info(
+                    "tick #%d done: symbol=%s elapsed=%.2fs rss=%.1fMB",
+                    tick_num, symbol_this_tick, elapsed, rss_mb,
+                )
+            except Exception:
+                pass
+
             sleep_for = max(1.0, config.POLL_INTERVAL_SECONDS - elapsed)
             time.sleep(sleep_for)
 
