@@ -1,0 +1,23 @@
+# Render Blueprint. In the Render dashboard: New -> Blueprint -> point it
+# at your GitHub repo, and it will read this file automatically. You can
+# also skip this and configure the same values by hand under
+# New -> Web Service.
+#
+# IMPORTANT: keep `--workers 1`. This app runs the signal engine as a
+# background thread inside the web process (RUN_ENGINE_INPROCESS=1) so a
+# single web service can do both jobs on Render's free/starter plans,
+# which don't include a separate background worker. More than one worker
+# would start multiple independent engine loops writing conflicting
+# signals to the same database.
+services:
+  - type: web
+    name: coindcx-scalper
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 1 --threads 4 --timeout 120 --bind 0.0.0.0:$PORT
+    envVars:
+      - key: RUN_ENGINE_INPROCESS
+        value: "1"
+      - key: PYTHON_VERSION
+        value: "3.11.9"
