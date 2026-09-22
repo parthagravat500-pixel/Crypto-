@@ -11,7 +11,7 @@ SIGNAL-ONLY system -- it never places, edits, or cancels an order.
 # ---------------------------------------------------------------------------
 BASE_URL = "https://api.coindcx.com"
 REQUEST_TIMEOUT = 5          # seconds, per HTTP call
-MAX_RETRIES = 2
+MAX_RETRIES = 1
 RETRY_BACKOFF_SECONDS = 1.5
 
 # ---------------------------------------------------------------------------
@@ -49,12 +49,15 @@ CANDLES_FETCH_LIMIT = 340            # 1m candles fetched per poll (~5.5 hours o
 # at least 20 resampled 15m candles to run its confirmation timeframe, and
 # resampling can drop a partial bucket at each edge, so this has margin.
 
-POLL_INTERVAL_SECONDS = 5            # how often we tick -- but each tick now
+POLL_INTERVAL_SECONDS = 15           # how often we tick -- but each tick now
 # analyzes only ONE pair, round-robin (see engine.run_forever), so with 5
-# monitored pairs each individual coin still gets refreshed roughly every
-# ~25s. This keeps each burst of CPU/network work small enough that it
-# doesn't starve the dashboard's own HTTP handling or trip gunicorn's
-# worker-hang watchdog on Render's free tier's small, throttled CPU slice.
+# monitored pairs each individual coin gets refreshed roughly every ~75s.
+# This keeps each burst of CPU/network work small AND infrequent enough
+# that it doesn't starve the dashboard's own HTTP handling or trip Render's
+# own health-check watchdog on the free tier's small, throttled CPU slice.
+# If restarts still happen after this, the free tier's shared/throttled CPU
+# is likely the real ceiling -- the durable fix at that point is Render's
+# paid Starter plan, which gives dedicated (non-shared) CPU.
 # CoinDCX's documented public sockets are Socket.IO based; the exact futures
 # candlestick channel/event names are not published in a stable enough form
 # to hardcode safely here, so this engine polls the REST candles endpoint
