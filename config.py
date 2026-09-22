@@ -10,8 +10,8 @@ SIGNAL-ONLY system -- it never places, edits, or cancels an order.
 # API
 # ---------------------------------------------------------------------------
 BASE_URL = "https://api.coindcx.com"
-REQUEST_TIMEOUT = 6          # seconds, per HTTP call
-MAX_RETRIES = 3
+REQUEST_TIMEOUT = 5          # seconds, per HTTP call
+MAX_RETRIES = 2
 RETRY_BACKOFF_SECONDS = 1.5
 
 # ---------------------------------------------------------------------------
@@ -44,9 +44,17 @@ CANDIDATE_SHORTLIST = [
 CANDLE_INTERVAL_EXEC = "1m"
 CANDLE_INTERVAL_CONFIRM_1 = "5m"     # not a native CoinDCX interval -> built by resampling 1m
 CANDLE_INTERVAL_CONFIRM_2 = "15m"    # built by resampling 1m
-CANDLES_FETCH_LIMIT = 300            # 1m candles fetched per poll (5 hours of history)
+CANDLES_FETCH_LIMIT = 150            # 1m candles fetched per poll (2.5 hours of history)
 
-POLL_INTERVAL_SECONDS = 5            # how often we re-poll candles for monitored pairs
+POLL_INTERVAL_SECONDS = 20           # how often we re-poll candles for monitored pairs
+# Kept well above the bare minimum needed to catch 1m candle closes: on
+# Render's free tier the engine runs as a background thread INSIDE the same
+# process that serves the dashboard, sharing a small, throttled CPU slice.
+# A 5s interval across 5 pairs (each needing a candle fetch + an orderbook
+# fetch) kept that process near-permanently busy and starved incoming HTTP
+# requests, which is why the dashboard could go unresponsive even though the
+# engine's own logs looked healthy. 20s is still frequent enough for 1m/5m/
+# 15m scalping signals.
 # CoinDCX's documented public sockets are Socket.IO based; the exact futures
 # candlestick channel/event names are not published in a stable enough form
 # to hardcode safely here, so this engine polls the REST candles endpoint
