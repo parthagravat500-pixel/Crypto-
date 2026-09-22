@@ -183,11 +183,24 @@ class Engine:
     # -- main loop -------------------------------------------------------
     def run_forever(self):
         log.info("Engine starting. Signal-only mode: no orders will ever be placed.")
+        # Round-robin index into self.monitored: each tick does ONE pair, not
+        # all of them. On Render's free tier this process shares a small,
+        # throttled CPU slice with the Flask dashboard, and analyzing all 5
+        # pairs back-to-back (candle fetch + indicators + orderbook, each
+        # with retries) could take long enough in one unbroken burst that
+        # gunicorn's own worker watchdog (--timeout) decided the process was
+        # hung and killed/restarted it -- wiping in-memory state and
+        # explaining "works once right after a restart, then dies." Doing
+        # one pair per tick keeps every burst small so the process stays
+        # responsive to HTTP requests in between.
+        rr_index = 0
         while True:
             loop_start = time.time()
             try:
                 self.refresh_universe_if_needed()
-                for cand in self.monitored:
+                if self.monitored:
+                    cand = self.monitored[rr_index % len(self.monitored)]
+                    rr_index += 1
                     card = self.analyze_pair(cand)
                     self.card_state[cand.symbol] = card
 
