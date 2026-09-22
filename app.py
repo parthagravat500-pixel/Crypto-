@@ -228,7 +228,7 @@ INDEX_HTML = """<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>CoinDCX Live Scalper</title>
-<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 :root {
   --bg: #0b0f14;
@@ -528,6 +528,9 @@ function renderBreakdown(elId, groups) {
 
 function ensureChart() {
   if (chart) return;
+  if (typeof LightweightCharts === "undefined") {
+    throw new Error("charting library did not load");
+  }
   const container = document.getElementById("chart-container");
   chart = LightweightCharts.createChart(container, {
     layout: { background: { color: "#121820" }, textColor: "#8b98a5" },
@@ -564,8 +567,17 @@ function addPriceLine(price, color, title) {
 }
 
 async function loadChart(symbol) {
-  ensureChart();
   document.getElementById("chart-title").textContent = symbol + " \\u00b7 1m";
+  try {
+    ensureChart();
+  } catch (e) {
+    console.error("chart init failed", e);
+    document.getElementById("chart-container").innerHTML =
+      '<div style="padding:20px;color:#8b98a5;font-size:13px;">Chart library failed to load ' +
+      '(likely a slow or blocked connection to the CDN). Price cards and signals above are ' +
+      'still live -- try reloading the page, or switching wifi/mobile data.</div>';
+    return;
+  }
   try {
     const res = await fetch("/api/chart/" + symbol);
     const data = await res.json();
