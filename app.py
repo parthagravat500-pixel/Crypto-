@@ -581,7 +581,17 @@ async function loadChart(symbol) {
   try {
     const res = await fetch("/api/chart/" + symbol);
     const data = await res.json();
-    if (data.error) return;
+    if (data.error) {
+      console.error("chart api error", data.error);
+      document.getElementById("chart-legend").innerHTML =
+        '<span style="color:#ef4444;">Chart data error: ' + data.error + '</span>';
+      return;
+    }
+    if (!data.candles || data.candles.length === 0) {
+      document.getElementById("chart-legend").innerHTML =
+        '<span style="color:#8b98a5;">No candle data returned for ' + symbol + '.</span>';
+      return;
+    }
 
     const candleData = data.candles.map((c) => ({ time: Math.floor(c.time / 1000), open: c.open, high: c.high, low: c.low, close: c.close }));
     candleSeries.setData(candleData);
@@ -613,6 +623,8 @@ async function loadChart(symbol) {
     candleSeries.setMarkers(markers);
   } catch (e) {
     console.error("chart load failed", e);
+    document.getElementById("chart-legend").innerHTML =
+      '<span style="color:#ef4444;">Chart failed to render: ' + (e && e.message ? e.message : e) + '</span>';
   }
 }
 
